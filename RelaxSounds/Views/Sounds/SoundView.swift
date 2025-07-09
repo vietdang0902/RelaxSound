@@ -36,22 +36,25 @@ struct SoundView: View {
                         .bold()
                         .foregroundColor(.white)
                         .padding(10)
-                    
+                   
                     // Mixed Sounds Section
                     if !mixedSoundViewModel.mixedSounds.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("My Mixed Sounds")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 50)
                             
                             LazyVGrid(columns: columns, spacing: 20) {
                                 ForEach(mixedSoundViewModel.mixedSounds.sorted { $0.createdAt > $1.createdAt }) { mixedSound in
                                     MixedSoundGridItem(mixedSound: mixedSound) {
                                         selectedMixedSound = mixedSound
                                     } onEdit: {
-                                        editingMixedSound = mixedSound
-                                        showingEditMixedSound = true
+                                        // Reset other states trước khi set edit state
+                                        showingDeleteAlert = false
+                                        mixedSoundToDelete = nil
+                                        
+                                        // Set edit state với delay nhỏ
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            editingMixedSound = mixedSound
+                                            showingEditMixedSound = true
+                                        }
                                     } onDelete: {
                                         // Handle delete action here
                                         mixedSoundToDelete = mixedSound
@@ -95,22 +98,27 @@ struct SoundView: View {
             ) {
                 EmptyView()
             }
+            
+            NavigationLink(
+                destination: editingMixedSound.map { mixedSound in
+                    EditMixedSoundView(
+                        isPresented: $showingEditMixedSound,
+                        initialName: mixedSound.title,
+                        initialAvatar: mixedSound.avatar,
+                        availableSounds: viewModel.sounds,
+                        onSave: { data in
+                            handleEditMixedSound(mixedSound: mixedSound, data: data)
+                        }
+                    )
+                },
+                isActive: $showingEditMixedSound
+            ) {
+                EmptyView()
+            }
         }
         .onAppear {
             viewModel.loadSounds()
             mixedSoundViewModel.loadMixedSounds()
-        }
-        .sheet(isPresented: $showingEditMixedSound) {
-            if let editingMixedSound = editingMixedSound {
-                SaveCustomView(
-                    isPresented: $showingEditMixedSound,
-                    initialName: editingMixedSound.title,
-                    initialAvatar: editingMixedSound.avatar,
-                    onSave: { data in
-                        handleEditMixedSound(mixedSound: editingMixedSound, data: data)
-                    }
-                )
-            }
         }
         .alert(isPresented: $showingDeleteAlert) {
             Alert(
@@ -226,9 +234,9 @@ struct MixedSoundGridItem: View {
                                 onEdit()
                             }) {
                                 Image(systemName: "pencil.circle.fill")
-                                    .font(.system(size: 16))
+                                    .font(.system(size: 25))
                                     .foregroundColor(.white)
-                                    .background(Color.blue.opacity(0.8))
+                                    .background(Color.black.opacity(0.8))
                                     .clipShape(Circle())
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -246,7 +254,7 @@ struct MixedSoundGridItem: View {
                                 onDelete()
                             }) {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 16))
+                                    .font(.system(size: 25))
                                     .foregroundColor(.white)
                                     .background(Color.red.opacity(0.8))
                                     .clipShape(Circle())

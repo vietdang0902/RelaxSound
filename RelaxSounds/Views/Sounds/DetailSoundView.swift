@@ -249,11 +249,27 @@ struct DetailSoundContent: View {
                 }
             }
         }) {
-            Image(systemName: audioManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                .resizable()
-                .frame(width: 60, height: 60)
-                .foregroundColor(.white)
-                .shadow(radius: 10)
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [Color.green, Color.blue]),
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                    .shadow(color: .green.opacity(0.4), radius: 20, x: 0, y: 10)
+                
+                Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundColor(.white)
+            }
+//            Image(systemName: audioManager.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+//                .resizable()
+//                .frame(width: 60, height: 60)
+//                .foregroundColor(.white)
+//                .shadow(radius: 10)
         }
         .padding(.bottom, 24)
     }
