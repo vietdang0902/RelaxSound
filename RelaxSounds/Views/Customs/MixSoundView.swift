@@ -30,7 +30,7 @@ struct MixSoundView: View {
                 )
             }
             
-            // Save the mixed sound using the view model
+            // Save mixed sound using the current view model instance
             viewModel.saveMixedSound(title: name, avatar: avatar, mixedSounds: mixedSounds)
             
             dismiss()

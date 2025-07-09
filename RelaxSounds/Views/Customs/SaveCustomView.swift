@@ -2,11 +2,19 @@ import SwiftUI
 
 struct SaveCustomView: View {
     @Binding var isPresented: Bool
-    @State private var customName: String = ""
-    @State private var selectedAvatar: String? = nil
+    @State private var customName: String
+    @State private var selectedAvatar: String?
     @StateObject private var soundViewModel = SoundViewModel()
     
     var onSave: (String) -> Void
+    
+    // Initializer with optional initial values
+    init(isPresented: Binding<Bool>, initialName: String = "", initialAvatar: String? = nil, onSave: @escaping (String) -> Void) {
+        self._isPresented = isPresented
+        self._customName = State(initialValue: initialName)
+        self._selectedAvatar = State(initialValue: initialAvatar)
+        self.onSave = onSave
+    }
     
     private let columns = [
         GridItem(.flexible()),
