@@ -172,11 +172,9 @@ struct SoundGridItem: View {
                             .frame(width: 150, height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     } placeholder: {
-                        Image(systemName: "photo")
-                            .resizable()
+                        ProgressView()
                             .scaledToFit()
                             .frame(width: 40, height: 40)
-                            .foregroundColor(.blue)
                     }
                 }
                 .frame(width: 120, height: 120)
@@ -202,6 +200,8 @@ struct MixedSoundGridItem: View {
     var onEdit: () -> Void
     var onDelete: () -> Void
     @State private var isPressed = false
+    @StateObject private var viewModel = SoundViewModel()
+    @State private var showSoundsList = false
 
     var body: some View {
         Button(action: {
@@ -220,11 +220,9 @@ struct MixedSoundGridItem: View {
                             .frame(width: 150, height: 120)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                     } placeholder: {
-                        Image(systemName: "photo")
-                            .resizable()
+                        ProgressView()
                             .scaledToFit()
                             .frame(width: 40, height: 40)
-                            .foregroundColor(.green)
                     }
                     
                     // Edit button
@@ -279,6 +277,9 @@ struct MixedSoundGridItem: View {
         .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
             isPressed = pressing
         }, perform: {})
+        .onAppear {
+            viewModel.loadSounds()
+        }
     }
 }
 

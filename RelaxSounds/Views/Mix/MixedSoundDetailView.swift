@@ -109,9 +109,8 @@ struct MixedSoundDetailContent: View {
     
     private var mixedSoundsSection: some View {
         VStack(spacing: 12) {
-            currentMixedSoundTitle
             mixedSoundsList
-            savedMixedSoundsList
+//            savedMixedSoundsList
         }
         .frame(maxWidth: 350)
         .padding(.horizontal, 16)
@@ -125,14 +124,6 @@ struct MixedSoundDetailContent: View {
                 )
         )
         .padding(.horizontal, 20)
-    }
-    
-    private var currentMixedSoundTitle: some View {
-        Text("Current Mix: \(mixedSound.title)")
-            .font(.headline)
-            .foregroundColor(.white)
-            .bold()
-            .padding(.bottom, 8)
     }
     
     private var mixedSoundsList: some View {
@@ -181,69 +172,6 @@ struct MixedSoundDetailContent: View {
             }
         }
         .frame(maxHeight: 200)
-    }
-    
-    private var savedMixedSoundsList: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if !viewModel.mixedSounds.isEmpty {
-                HStack {
-                    Text("Saved Mixes")
-                        .font(.headline)
-                        .foregroundColor(.white.opacity(0.9))
-                    Spacer()
-                }
-                .padding(.horizontal, 8)
-                .padding(.top, 12)
-                
-                ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(viewModel.mixedSounds) { savedMix in
-                            if savedMix.id != mixedSound.id { // Don't show the current mix in the saved list
-                                HStack {
-                                    AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(savedMix.avatar)")) { image in
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30, height: 30)
-                                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    } placeholder: {
-                                        Image(systemName: "music.note.list")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30, height: 30)
-                                            .foregroundColor(.white.opacity(0.7))
-                                    }
-                                    
-                                    Text(savedMix.title)
-                                        .font(.subheadline)
-                                        .foregroundColor(.white)
-                                        .bold()
-                                    
-                                    Spacer()
-                                    
-                                    Text("\(savedMix.mixedSounds.count) sounds")
-                                        .font(.caption)
-                                        .foregroundColor(.white.opacity(0.7))
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.white.opacity(0.1))
-                                )
-                                .onTapGesture {
-                                    // Play the selected saved mix when tapped
-                                    audioManager.stopAll()
-                                    audioManager.playMixedSounds(savedMix)
-                                    isPlayingAll = true
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(maxHeight: 150)
-            }
-        }
     }
     
     private var playPauseButton: some View {
