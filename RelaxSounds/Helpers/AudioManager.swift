@@ -54,41 +54,76 @@ class AudioManager: ObservableObject {
     }
 
     func playMixedSounds(_ mixedSound: MixedSoundModel) {
+        print("🎵 AudioManager: Starting playMixedSounds for '\(mixedSound.title)'")
+        print("🎵 AudioManager: Found \(mixedSound.mixedSounds.count) sounds to play")
+        
         stopAll()
         isPlaying = true
+        
+        // Sử dụng linkMusic trực tiếp từ MixedSound thay vì lookup
         for component in mixedSound.mixedSounds {
-            // Sử dụng trực tiếp linkMusic từ component, không cần lookup API
+            print("🎵 AudioManager: Processing sound '\(component.title)' with linkMusic: \(component.linkMusic)")
+            
             guard let url = URL(string: component.linkMusic) else {
-                print("Invalid URL for soundId \(component.soundId): \(component.linkMusic)")
+                print("❌ AudioManager: Invalid URL for sound '\(component.title)': \(component.linkMusic)")
                 continue
             }
+            
             let id = component.soundId
             let playerNode = AVAudioPlayerNode()
             engine.attach(playerNode)
-            let volume = Float(component.volume / 100.0) // Chuyển volume từ 0-100 về 0-1
+            let volume = Float(component.volume / 100.0)
             let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
             engine.connect(playerNode, to: engine.mainMixerNode, format: outputFormat)
             playerNode.volume = volume
             playerNodes[id] = playerNode
+            
+            print("🎵 AudioManager: Created player node for '\(component.title)' with volume: \(volume)")
 
             downloadAudio(url: url) { [weak self] file in
-                guard let self = self, let file = file else { return }
+                guard let self = self, let file = file else {
+                    print("❌ AudioManager: Failed to download audio for '\(component.title)'")
+                    return
+                }
+                print("✅ AudioManager: Successfully downloaded audio for '\(component.title)'")
+                
                 self.audioFiles[id] = file
                 if let buffer = self.createBuffer(from: file) {
                     self.buffers[id] = buffer
                     playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
-                    if !self.engine.isRunning {
-                        try? self.engine.start()
-                    }
+                    self.ensureEngineRunning()
                     playerNode.play()
-                    DispatchQueue.main.async {
-                        self.playingSoundIDs.insert(id)
-                    }
+                    print("▶️ AudioManager: Started playing '\(component.title)'")
+                } else {
+                    print("❌ AudioManager: Failed to create buffer for '\(component.title)'")
                 }
             }
         }
     }
-
+    
+    private func ensureEngineRunning() {
+        if !engine.isRunning {
+            print("🔧 AudioManager: Engine not running, attempting to start...")
+            do {
+                try engine.start()
+                print("✅ AudioManager: Engine started successfully")
+            } catch {
+                print("❌ AudioManager: Failed to start engine: \(error)")
+                // Reset engine nếu fail và try lại
+                print("🔧 AudioManager: Resetting engine and trying again...")
+                engine.reset()
+                do {
+                    try engine.start()
+                    print("✅ AudioManager: Engine started after reset")
+                } catch {
+                    print("❌ AudioManager: Failed to start engine even after reset: \(error)")
+                }
+            }
+        } else {
+            print("✅ AudioManager: Engine already running")
+        }
+    }
+    
     func addSoundToMix(_ sound: MixedSound) {
         guard let url = URL(string: sound.linkMusic) else {
             print("Invalid URL for sound: \(sound.linkMusic)")

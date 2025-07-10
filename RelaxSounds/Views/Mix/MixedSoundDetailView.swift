@@ -158,12 +158,23 @@ struct MixedSoundDetailContent: View {
 
     private var playPauseButton: some View {
         Button(action: {
-            if isPlayingAll {
-                audioManager.stopAll()
-            } else {
-                audioManager.playMixedSounds(mixedSound)
+            print("🎵 Play button tapped, isPlayingAll: \(isPlayingAll)")
+            print("🎵 MixedSound data: \(mixedSound.title) with \(mixedSound.mixedSounds.count) sounds")
+            
+            // Debug: In chi tiết các sounds
+            for (index, sound) in mixedSound.mixedSounds.enumerated() {
+                print("🎵 Sound \(index): \(sound.title), volume: \(sound.volume), linkMusic: \(sound.linkMusic)")
             }
-            isPlayingAll.toggle()
+            
+            if isPlayingAll {
+                print("🛑 Stopping all sounds")
+                audioManager.stopAll()
+                isPlayingAll = false
+            } else {
+                print("▶️ Starting to play mixed sounds")
+                audioManager.playMixedSounds(mixedSound)
+                isPlayingAll = true
+            }
         }) {
             ZStack {
                 Circle()
