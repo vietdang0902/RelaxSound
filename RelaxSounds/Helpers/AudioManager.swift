@@ -7,7 +7,7 @@ class AudioManager: ObservableObject {
     private var audioFiles: [Int: AVAudioFile] = [:]
     private var buffers: [Int: AVAudioPCMBuffer] = [:]
 
-    // Thêm thuộc tính để lưu title của music hiện tại
+    @Published var playingSoundIDs: Set<Int> = []
     @Published var currentMusicTitle: String = ""
     @Published var isPlaying: Bool = false
 
@@ -57,28 +57,70 @@ class AudioManager: ObservableObject {
         stopAll()
         isPlaying = true
         for component in mixedSound.mixedSounds {
-            if let sound = SoundViewModel().sounds.first(where: { $0.id == component.soundId }) {
-                guard let url = URL(string: "https://sleepchills.kenhtao.site/storage/\(sound.slug)") else { continue }
-                let id = component.soundId
-                let playerNode = AVAudioPlayerNode()
-                engine.attach(playerNode)
-                let volume = Float(component.volume / 100.0)
-                let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
-                engine.connect(playerNode, to: engine.mainMixerNode, format: outputFormat)
-                playerNode.volume = volume
-                playerNodes[id] = playerNode
+            // Sử dụng trực tiếp linkMusic từ component, không cần lookup API
+            guard let url = URL(string: component.linkMusic) else {
+                print("Invalid URL for soundId \(component.soundId): \(component.linkMusic)")
+                continue
+            }
+            let id = component.soundId
+            let playerNode = AVAudioPlayerNode()
+            engine.attach(playerNode)
+            let volume = Float(component.volume / 100.0) // Chuyển volume từ 0-100 về 0-1
+            let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
+            engine.connect(playerNode, to: engine.mainMixerNode, format: outputFormat)
+            playerNode.volume = volume
+            playerNodes[id] = playerNode
 
-                downloadAudio(url: url) { [weak self] file in
-                    guard let self = self, let file = file else { return }
-                    self.audioFiles[id] = file
-                    if let buffer = self.createBuffer(from: file) {
-                        self.buffers[id] = buffer
-                        playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
-                        if !self.engine.isRunning {
-                            try? self.engine.start()
-                        }
-                        playerNode.play()
+            downloadAudio(url: url) { [weak self] file in
+                guard let self = self, let file = file else { return }
+                self.audioFiles[id] = file
+                if let buffer = self.createBuffer(from: file) {
+                    self.buffers[id] = buffer
+                    playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+                    if !self.engine.isRunning {
+                        try? self.engine.start()
                     }
+                    playerNode.play()
+                    DispatchQueue.main.async {
+                        self.playingSoundIDs.insert(id)
+                    }
+                }
+            }
+        }
+    }
+
+    func addSoundToMix(_ sound: MixedSound) {
+        guard let url = URL(string: sound.linkMusic) else {
+            print("Invalid URL for sound: \(sound.linkMusic)")
+            return
+        }
+        let id = sound.soundId
+
+        if playerNodes[id] != nil {
+            print("Sound \(id) is already in the engine.")
+            return
+        }
+
+        let playerNode = AVAudioPlayerNode()
+        engine.attach(playerNode)
+        let volume = Float(sound.volume / 100.0)
+        let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
+        engine.connect(playerNode, to: engine.mainMixerNode, format: outputFormat)
+        playerNode.volume = volume
+        playerNodes[id] = playerNode
+
+        downloadAudio(url: url) { [weak self] file in
+            guard let self = self, let file = file else { return }
+            self.audioFiles[id] = file
+            if let buffer = self.createBuffer(from: file) {
+                self.buffers[id] = buffer
+                playerNode.scheduleBuffer(buffer, at: nil, options: .loops, completionHandler: nil)
+                if !self.engine.isRunning {
+                    try? self.engine.start()
+                }
+                playerNode.play()
+                DispatchQueue.main.async {
+                    self.playingSoundIDs.insert(id)
                 }
             }
         }
@@ -232,8 +274,8 @@ class AudioManager: ObservableObject {
         }
         isPlaying = false
         
-        // Xóa title khi dừng phát
         DispatchQueue.main.async {
+            self.playingSoundIDs.removeAll()
             self.currentMusicTitle = ""
         }
     }
@@ -246,6 +288,9 @@ class AudioManager: ObservableObject {
             playerNodes.removeValue(forKey: id)
             audioFiles.removeValue(forKey: id)
             buffers.removeValue(forKey: id)
+            DispatchQueue.main.async {
+                self.playingSoundIDs.remove(id)
+            }
         }
     }
 

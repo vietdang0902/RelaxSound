@@ -3,6 +3,9 @@ import Foundation
 struct MixedSound: Codable, Hashable {
     let soundId: Int
     let volume: Double
+    let title: String        // Thêm title của music
+    let avatar: String       // Thêm avatar của music
+    let linkMusic: String    // Thêm linkMusic để phát âm thanh
 }
 
 struct MixedSoundModel: Identifiable, Codable, Hashable {

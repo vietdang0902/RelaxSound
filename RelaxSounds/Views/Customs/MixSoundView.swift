@@ -26,7 +26,10 @@ struct MixSoundView: View {
             let mixedSounds = selectedSounds.map { sound in
                 MixedSound(
                     soundId: sound.id,
-                    volume: Double(sound.volume ?? "50") ?? 50
+                    volume: Double(sound.volume ?? "50") ?? 50,
+                    title: sound.title,
+                    avatar: sound.avatar,
+                    linkMusic: sound.linkMusic
                 )
             }
             

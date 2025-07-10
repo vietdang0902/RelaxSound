@@ -29,13 +29,14 @@ struct MixedSoundDetailContent: View {
     @StateObject private var viewModel = SoundViewModel()
     @StateObject var audioManager = AudioManager()
     @State private var isPlayingAll = false
-    
+    @State private var editableMixedSounds: [MixedSound] = []
+
     @EnvironmentObject private var timerManager: TimerManager
 
     var body: some View {
         ZStack {
             backgroundImage
-            
+
             VStack(spacing: 15) {
                 timerSection
                 mixedSoundsSection
@@ -52,9 +53,11 @@ struct MixedSoundDetailContent: View {
         }
         .onAppear {
             viewModel.loadSounds()
+            viewModel.loadMixedSounds()
+            editableMixedSounds = mixedSound.mixedSounds
         }
     }
-    
+
     private var backgroundImage: some View {
         AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(mixedSound.imageName)")) { image in
             image
@@ -67,7 +70,7 @@ struct MixedSoundDetailContent: View {
                 .ignoresSafeArea()
         }
     }
-    
+
     private var timerSection: some View {
         HStack(spacing: 32) {
             Button(action: { showSetTimer = true }) {
@@ -106,7 +109,7 @@ struct MixedSoundDetailContent: View {
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: showSetTimer)
         }
     }
-    
+
     private var mixedSoundsSection: some View {
         VStack(spacing: 12) {
             mixedSoundsList
@@ -125,55 +128,41 @@ struct MixedSoundDetailContent: View {
         )
         .padding(.horizontal, 20)
     }
-    
+
     private var mixedSoundsList: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                ForEach(mixedSound.mixedSounds, id: \.soundId) { sound in
-                    if let originalSound = viewModel.sounds.first(where: { $0.id == sound.soundId }) {
-                        HStack {
-                            AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(originalSound.avatar)")) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30, height: 30)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                            } placeholder: {
-                                Image(systemName: "music.note")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30, height: 30)
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(originalSound.title)
-                                    .font(.subheadline)
-                                    .foregroundColor(.white)
-                                    .bold()
-                                Text("Volume: \(Int(sound.volume))%")
-                                    .font(.caption)
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "waveform")
-                                .foregroundColor(.white.opacity(0.7))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.white.opacity(0.1))
-                        )
-                    }
+        Group {
+            if viewModel.isLoading {
+                VStack {
+                    ProgressView("Loading sounds...")
+                        .foregroundColor(.white)
                 }
+                .frame(maxHeight: 200)
+            } else if editableMixedSounds.isEmpty {
+                VStack {
+                    Text("No sounds in this mix")
+                        .foregroundColor(.white.opacity(0.7))
+                }
+                .frame(maxHeight: 200)
+            } else {
+                // Tách ForEach ra một View riêng để giảm độ phức tạp
+                SoundListView(
+                    editableMixedSounds: $editableMixedSounds,
+                    viewModel: viewModel,
+                    updateAction: updateMixedSoundInStorage
+                )
             }
         }
-        .frame(maxHeight: 200)
     }
-    
+
+    private func updateMixedSoundInStorage() {
+        viewModel.updateMixedSoundWithNewSounds(
+            id: mixedSound.id,
+            title: mixedSound.title,
+            avatar: mixedSound.avatar,
+            mixedSounds: editableMixedSounds
+        )
+    }
+
     private var playPauseButton: some View {
         Button(action: {
             if isPlayingAll {
@@ -199,7 +188,7 @@ struct MixedSoundDetailContent: View {
                     )
                     .frame(width: 80, height: 80)
                     .shadow(color: .green.opacity(0.4), radius: 20, x: 0, y: 10)
-                
+
                 Image(systemName: isPlayingAll ? "pause.fill" : "play.fill")
                     .font(.system(size: 30, weight: .bold))
                     .foregroundColor(.white)
@@ -209,5 +198,110 @@ struct MixedSoundDetailContent: View {
         .scaleEffect(isPlayingAll ? 1.1 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPlayingAll)
         .padding(.bottom, 30)
+    }
+}
+
+// View mới được tách ra để xử lý vòng lặp ForEach
+struct SoundListView: View {
+    @Binding var editableMixedSounds: [MixedSound]
+    @ObservedObject var viewModel: SoundViewModel
+    var updateAction: () -> Void
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                ForEach(Array(editableMixedSounds.enumerated()), id: \.element.soundId) { index, sound in
+                    // Logic tìm kiếm sound vẫn giữ nguyên ở đây
+                    if let originalSound = viewModel.sounds.first(where: { $0.id == sound.soundId }) {
+                        let currentMixedSound = editableMixedSounds[index]
+                        MixedSoundRow(
+                            mixedSound: currentMixedSound,
+                            onVolumeChange: { newVolume in
+                                editableMixedSounds[index] = MixedSound(
+                                    soundId: sound.soundId,
+                                    volume: Double(newVolume),
+                                    title: sound.title,
+                                    avatar: sound.avatar,
+                                    linkMusic: sound.linkMusic
+                                )
+                                updateAction()
+                            },
+                            onRemove: {
+                                editableMixedSounds.remove(at: index)
+                                updateAction()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: 200)
+    }
+}
+
+struct MixedSoundRow: View {
+    let mixedSound: MixedSound
+    var onVolumeChange: (Double) -> Void
+    var onRemove: () -> Void
+
+    @State private var currentVolume: Double
+
+    init(mixedSound: MixedSound, onVolumeChange: @escaping (Double) -> Void, onRemove: @escaping () -> Void) {
+        self.mixedSound = mixedSound
+        self.onVolumeChange = onVolumeChange
+        self.onRemove = onRemove
+        _currentVolume = State(initialValue: mixedSound.volume)
+    }
+
+    var body: some View {
+        HStack {
+            AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(mixedSound.avatar)")) { image in
+                image
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } placeholder: {
+                Image(systemName: "music.note")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 30, height: 30)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mixedSound.title)
+                    .font(.subheadline)
+                    .foregroundColor(.white)
+                    .bold()
+                Text("Volume: \(Int(currentVolume))%")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Spacer()
+
+            Slider(value: $currentVolume, in: 0 ... 100, step: 1)
+                .accentColor(.purple)
+                .frame(width: 100)
+                .onChange(of: currentVolume) { newValue in
+                    onVolumeChange(newValue)
+                }
+
+            Button(action: onRemove) {
+                Image(systemName: "trash")
+                    .foregroundColor(.red)
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.1))
+        )
+        .onAppear {
+            currentVolume = mixedSound.volume
+        }
     }
 }

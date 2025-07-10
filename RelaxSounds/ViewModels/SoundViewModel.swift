@@ -132,4 +132,22 @@ class SoundViewModel: ObservableObject {
             saveMixedSoundsToStorage()
         }
     }
+    
+    func updateMixedSoundWithNewSounds(id: Int, title: String, avatar: String, mixedSounds: [MixedSound]) {
+        // Load existing mixedSounds from UserDefaults first
+        loadMixedSounds()
+        
+        // Find and update the mixedSound with new sounds array
+        if let index = self.mixedSounds.firstIndex(where: { $0.id == id }) {
+            let updatedMixedSound = MixedSoundModel(
+                id: self.mixedSounds[index].id,
+                title: title,
+                avatar: avatar,
+                mixedSounds: mixedSounds,
+                createdAt: self.mixedSounds[index].createdAt
+            )
+            self.mixedSounds[index] = updatedMixedSound
+            saveMixedSoundsToStorage()
+        }
+    }
 }
