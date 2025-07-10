@@ -116,55 +116,88 @@ private struct SoundSliderRow: View {
     @ObservedObject var audioManager = AudioManager()
     
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 16) {
+            // Sound image
             AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(sound.avatar)")) { image in
                 image
                     .resizable()
-                    .scaledToFit()
-                    .frame(width: 30, height: 30)
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } placeholder: {
-                Image(systemName: "photo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 30, height: 30)
-                    .foregroundColor(.blue)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .foregroundColor(.white.opacity(0.7))
+                    )
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(sound.title)
-                    .foregroundColor(.white)
-                    .font(.caption)
-                Text("Volume: \(Int(Double(sound.volume ?? "50") ?? 50))%")
-                    .foregroundColor(.white.opacity(0.7))
-                    .font(.caption2)
-            }
-
-            Slider(
-                value: Binding(
-                    get: {
-                        // Convert từ stored value (có thể là 0-1 hoặc 0-100) về 0-100 scale
-                        let storedVolume = Double(sound.volume ?? "50") ?? 50
-                        return storedVolume <= 1.0 ? storedVolume * 100 : storedVolume
-                    },
-                    set: { newValue in
-                        print("🎚️ Slider changed for '\(sound.title)': \(newValue)%")
-                        onVolumeChange(newValue)
-                        // Convert từ 0-100 → 0-1 cho AudioManager
-                        audioManager.setVolume(for: sound.id, volume: Float(newValue / 100.0))
+            // Sound info and controls
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(sound.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        
+                        Text("Volume: \(Int(volumePercentage))%")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.7))
                     }
-                ),
-                in: 0...100,
-                step: 1
-            )
-            .accentColor(.white)
-
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    Button(action: onRemove) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.red.opacity(0.8))
+                            .padding(8)
+                            .background(Color.white.opacity(0.1))
+                            .clipShape(Circle())
+                    }
+                }
+                
+                // Volume slider with 0-100 scale
+                Slider(
+                    value: Binding(
+                        get: {
+                            // Convert từ API format (0-1) sang UI scale (0-100)
+                            let apiVolume = Double(sound.volume ?? "0.5") ?? 0.5
+                            return apiVolume * 100  // 0.5 → 50, 1.0 → 100
+                        },
+                        set: { newValue in
+                            // Convert từ UI scale (0-100) sang API format (0-1)
+                            let apiVolume = newValue / 100.0  // 50 → 0.5, 100 → 1.0
+                            print("🎚️ '\(sound.title)': \(Int(newValue))% (API: \(apiVolume))")
+                            onVolumeChange(apiVolume)
+                            audioManager.setVolume(for: sound.id, volume: Float(apiVolume))
+                        }
+                    ),
+                    in: 0...100,
+                    step: 1
+                )
+                .accentColor(.blue)
             }
         }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+    }
+    
+    // Helper để tính percentage cho display
+    private var volumePercentage: Double {
+        let apiVolume = Double(sound.volume ?? "0.5") ?? 0.5
+        return apiVolume * 100  // Convert API format to percentage
     }
 }
 
