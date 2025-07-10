@@ -26,7 +26,6 @@ struct MixedSoundDetailView: View {
 struct MixedSoundDetailContent: View {
     let mixedSound: MixedSoundModel
     @Binding var showSetTimer: Bool
-    @StateObject private var viewModel = SoundViewModel()
     @StateObject var audioManager = AudioManager()
     @State private var isPlayingAll = false
     @State private var editableMixedSounds: [MixedSound] = []
@@ -52,8 +51,6 @@ struct MixedSoundDetailContent: View {
             .padding(.top, 10)
         }
         .onAppear {
-            viewModel.loadSounds()
-            viewModel.loadMixedSounds()
             editableMixedSounds = mixedSound.mixedSounds
         }
     }
@@ -131,23 +128,16 @@ struct MixedSoundDetailContent: View {
 
     private var mixedSoundsList: some View {
         Group {
-            if viewModel.isLoading {
-                VStack {
-                    ProgressView("Loading sounds...")
-                        .foregroundColor(.white)
-                }
-                .frame(maxHeight: 200)
-            } else if editableMixedSounds.isEmpty {
+            if editableMixedSounds.isEmpty {
                 VStack {
                     Text("No sounds in this mix")
                         .foregroundColor(.white.opacity(0.7))
                 }
                 .frame(maxHeight: 200)
             } else {
-                // Tách ForEach ra một View riêng để giảm độ phức tạp
+                // Đơn giản hóa - không cần SoundViewModel nữa
                 SoundListView(
                     editableMixedSounds: $editableMixedSounds,
-                    viewModel: viewModel,
                     updateAction: updateMixedSoundInStorage
                 )
             }
@@ -155,12 +145,15 @@ struct MixedSoundDetailContent: View {
     }
 
     private func updateMixedSoundInStorage() {
-        viewModel.updateMixedSoundWithNewSounds(
-            id: mixedSound.id,
-            title: mixedSound.title,
-            avatar: mixedSound.avatar,
-            mixedSounds: editableMixedSounds
-        )
+        // Lưu trực tiếp vào UserDefaults thông qua một helper function
+        saveMixedSoundToUserDefaults()
+    }
+    
+    private func saveMixedSoundToUserDefaults() {
+        let encoder = JSONEncoder()
+        if let data = try? encoder.encode(editableMixedSounds) {
+            UserDefaults.standard.set(data, forKey: "mixedSound_\(mixedSound.id)")
+        }
     }
 
     private var playPauseButton: some View {
@@ -201,37 +194,31 @@ struct MixedSoundDetailContent: View {
     }
 }
 
-// View mới được tách ra để xử lý vòng lặp ForEach
 struct SoundListView: View {
     @Binding var editableMixedSounds: [MixedSound]
-    @ObservedObject var viewModel: SoundViewModel
     var updateAction: () -> Void
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
                 ForEach(Array(editableMixedSounds.enumerated()), id: \.element.soundId) { index, sound in
-                    // Logic tìm kiếm sound vẫn giữ nguyên ở đây
-                    if let originalSound = viewModel.sounds.first(where: { $0.id == sound.soundId }) {
-                        let currentMixedSound = editableMixedSounds[index]
-                        MixedSoundRow(
-                            mixedSound: currentMixedSound,
-                            onVolumeChange: { newVolume in
-                                editableMixedSounds[index] = MixedSound(
-                                    soundId: sound.soundId,
-                                    volume: Double(newVolume),
-                                    title: sound.title,
-                                    avatar: sound.avatar,
-                                    linkMusic: sound.linkMusic
-                                )
-                                updateAction()
-                            },
-                            onRemove: {
-                                editableMixedSounds.remove(at: index)
-                                updateAction()
-                            }
-                        )
-                    }
+                    MixedSoundRow(
+                        mixedSound: sound,
+                        onVolumeChange: { newVolume in
+                            editableMixedSounds[index] = MixedSound(
+                                soundId: sound.soundId,
+                                volume: Double(newVolume),
+                                title: sound.title,
+                                avatar: sound.avatar,
+                                linkMusic: sound.linkMusic
+                            )
+                            updateAction()
+                        },
+                        onRemove: {
+                            editableMixedSounds.remove(at: index)
+                            updateAction()
+                        }
+                    )
                 }
             }
         }
