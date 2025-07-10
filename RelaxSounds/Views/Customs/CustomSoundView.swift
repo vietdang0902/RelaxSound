@@ -75,6 +75,23 @@ struct CustomGridSoundView: View {
         )
     }
 
+    private func volumeSliderBinding(for sound: CustomSoundData) -> Binding<Double> {
+        Binding<Double>(
+            get: {
+                Double(volumes[sound.slug] ?? 0.5) * 100.0
+            },
+            set: { newValue in
+                let volumeValue = Float(newValue) / 100.0
+                volumes[sound.slug] = volumeValue
+                audioManager.setVolume(for: sound.id, volume: volumeValue)
+            }
+        )
+    }
+
+    private func volumePercentage(for sound: CustomSoundData) -> Int {
+        Int((volumes[sound.slug] ?? 0.5) * 100)
+    }
+
     @ViewBuilder
     func soundCell(for sound: CustomSoundData) -> some View {
         VStack(spacing: 4) {
@@ -125,15 +142,17 @@ struct CustomGridSoundView: View {
 
             VStack {
                 if showVolumeForSlugs.contains(sound.slug) {
+//                    // Hiển thị volume percentage
+//                    Text("Volume: \(volumePercentage(for: sound))%")
+//                        .font(.caption2)
+//                        .foregroundColor(.white)
+//                        .padding(.bottom, 2)
+                    
+                    // Slider với 0-100 scale cho UX tốt hơn
                     Slider(
-                        value: Binding(
-                            get: { volumes[sound.slug] ?? 0.5 },
-                            set: { newValue in
-                                volumes[sound.slug] = newValue
-                                audioManager.setVolume(for: sound.id, volume: newValue)
-                            }
-                        ),
-                        in: 0...1
+                        value: volumeSliderBinding(for: sound),
+                        in: 0...100,
+                        step: 1
                     )
                     .accentColor(.white)
                     .transition(.opacity)

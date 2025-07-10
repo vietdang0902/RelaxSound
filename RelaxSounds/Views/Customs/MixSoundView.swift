@@ -114,6 +114,7 @@ private struct SoundSliderRow: View {
     let onVolumeChange: (Double) -> Void
     let onRemove: () -> Void
     @ObservedObject var audioManager = AudioManager()
+    
     var body: some View {
         HStack(spacing: 20) {
             AsyncImage(url: URL(string: "https://sleepchills.kenhtao.site/storage/\(sound.avatar)")) { image in
@@ -130,15 +131,31 @@ private struct SoundSliderRow: View {
                     .foregroundColor(.blue)
             }
 
+            VStack(alignment: .leading, spacing: 4) {
+                Text(sound.title)
+                    .foregroundColor(.white)
+                    .font(.caption)
+                Text("Volume: \(Int(Double(sound.volume ?? "50") ?? 50))%")
+                    .foregroundColor(.white.opacity(0.7))
+                    .font(.caption2)
+            }
+
             Slider(
                 value: Binding(
-                    get: { Double(sound.volume ?? "0.5") ?? 0.5 },
+                    get: {
+                        // Convert từ stored value (có thể là 0-1 hoặc 0-100) về 0-100 scale
+                        let storedVolume = Double(sound.volume ?? "50") ?? 50
+                        return storedVolume <= 1.0 ? storedVolume * 100 : storedVolume
+                    },
                     set: { newValue in
+                        print("🎚️ Slider changed for '\(sound.title)': \(newValue)%")
                         onVolumeChange(newValue)
-                        audioManager.setVolume(for: sound.id, volume: Float(newValue))
+                        // Convert từ 0-100 → 0-1 cho AudioManager
+                        audioManager.setVolume(for: sound.id, volume: Float(newValue / 100.0))
                     }
                 ),
-                in: 0 ... 1
+                in: 0...100,
+                step: 1
             )
             .accentColor(.white)
 
